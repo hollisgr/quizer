@@ -64,6 +64,7 @@ func (h *handler) Register() {
 	protected.GET("/games/:id", h.GameLoad)
 	protected.POST("/games/:id", h.UpdateGame)
 	protected.POST("/games", h.CreateGame)
+	protected.DELETE("/games/:id", h.DeleteGame)
 }
 
 // sendError sends an error response to the client with a specified HTTP status code and error message.

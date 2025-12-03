@@ -130,3 +130,26 @@ func (s *storage) UpdateGame(ctx context.Context, updated model.Game) (int, erro
 
 	return res, nil
 }
+
+func (s *storage) DeleteGame(ctx context.Context, id int) (int, error) {
+	res := 0
+	query := `
+		DELETE FROM
+			games
+		WHERE
+			id = @id
+		RETURNING id
+	`
+	args := pgx.NamedArgs{
+		"id": id,
+	}
+	row := s.db.QueryRow(ctx, query, args)
+
+	err := row.Scan(&res)
+
+	if err != nil || res == 0 {
+		return res, err
+	}
+
+	return res, nil
+}

@@ -15,6 +15,7 @@ type Storage interface {
 	GameList(ctx context.Context) ([]model.Game, error)
 	GameLoad(ctx context.Context, id int) (model.Game, error)
 	UpdateGame(ctx context.Context, updated model.Game) (int, error)
+	DeleteGame(ctx context.Context, id int) (int, error)
 
 	CreateQuestion(ctx context.Context, data dto.CreateNewQuestionRequest) (int, error)
 	QuestionLoad(ctx context.Context, id int) (model.Question, error)

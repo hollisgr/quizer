@@ -12,6 +12,7 @@ type Service interface {
 	CreateNewGame(ctx context.Context, data dto.CreateNewGame) (int, error)
 	GameList(ctx context.Context) ([]model.Game, error)
 	GameLoad(ctx context.Context, id int) (model.Game, error)
+	DeleteGame(ctx context.Context, id int) (int, error)
 	UpdateGame(ctx context.Context, updated model.Game) (int, error)
 }
 
@@ -55,6 +56,15 @@ func (gs *gameService) GameLoad(ctx context.Context, id int) (model.Game, error)
 func (gs *gameService) UpdateGame(ctx context.Context, updated model.Game) (int, error) {
 	res, err := gs.storage.UpdateGame(ctx, updated)
 	if err != nil || res == 0 {
+		log.Println(err)
+		return res, err
+	}
+	return res, nil
+}
+
+func (gs *gameService) DeleteGame(ctx context.Context, id int) (int, error) {
+	res, err := gs.storage.DeleteGame(ctx, id)
+	if err != nil {
 		log.Println(err)
 		return res, err
 	}

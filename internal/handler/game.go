@@ -103,3 +103,26 @@ func (h *handler) UpdateGame(c *gin.Context) {
 
 	sendSuccess(c, http.StatusOK, resp)
 }
+
+func (h *handler) DeleteGame(c *gin.Context) {
+	idStr := c.Params.ByName("id")
+	id := 0
+	_, err := fmt.Sscanf(idStr, "%d", &id)
+
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "game id is required")
+		return
+	}
+
+	id, err = h.gameSvc.DeleteGame(c.Request.Context(), id)
+	if err != nil || id == 0 {
+		sendError(c, http.StatusInternalServerError, "internal err")
+		return
+	}
+
+	resp := map[string]any{
+		"id": id,
+	}
+
+	sendSuccess(c, http.StatusOK, resp)
+}
