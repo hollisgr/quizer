@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
 	"quizer_server/internal/app/services"
 	"quizer_server/internal/middleware"
 	"quizer_server/internal/service/game"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
 type Handler interface {
@@ -19,12 +22,14 @@ type Handler interface {
 }
 
 type handler struct {
-	router      *gin.Engine
-	userSvc     user.Service
-	gameSvc     game.Service
-	questionSvc question.Service
-	jwtSvc      jwt.Service
-	userAuth    middleware.UserAuthenticator
+	router            *gin.Engine
+	userSvc           user.Service
+	gameSvc           game.Service
+	questionSvc       question.Service
+	jwtSvc            jwt.Service
+	userAuth          middleware.UserAuthenticator
+	updater           websocket.Upgrader
+	activeConnections map[uuid.UUID]*websocket.Conn
 }
 
 func New(r *gin.Engine, s services.Services) Handler {
@@ -35,6 +40,13 @@ func New(r *gin.Engine, s services.Services) Handler {
 		userAuth:    s.UserAuth,
 		gameSvc:     s.GameSvc,
 		questionSvc: s.QuestionSvc,
+		updater: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
 	}
 }
 
@@ -51,6 +63,7 @@ func (h *handler) Register() {
 	protected := h.router.Group("/", h.userAuth.Authorization())
 
 	h.router.GET("/login", h.Login)
+	h.router.GET("/ws/:player_uuid", h.wsHandler)
 
 	protected.GET("/user/:login", h.UserByLogin)
 

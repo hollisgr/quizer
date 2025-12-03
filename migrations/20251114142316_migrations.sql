@@ -33,11 +33,30 @@ CREATE TABLE questions (
     cost INTEGER
 );
 
-CREATE TABLE lobby (
+CREATE TABLE lobbies (
+    uuid UUID,
+    creator_uuid UUID,
+    game_id INTEGER
+);
+
+CREATE TABLE players (
+    uuid UUID,
+    user_name TEXT
+);
+
+CREATE TABLE player_answers (
     id SERIAL PRIMARY KEY,
-    creator_id INTEGER,
     game_id INTEGER,
-    description TEXT
+    player_uuid UUID,
+    question_id INTEGER
+);
+
+CREATE TABLE player_results (
+    id SERIAL PRIMARY KEY,
+    game_id INTEGER,
+    player_uuid UUID,
+    question_id INTEGER,
+    score INTEGER
 );
 
 -- +goose StatementEnd
