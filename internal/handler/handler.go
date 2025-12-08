@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"quizer_server/internal/app/services"
+	"quizer_server/internal/config"
 	"quizer_server/internal/middleware"
 	"quizer_server/internal/service/game"
 	"quizer_server/internal/service/jwt"
@@ -53,12 +54,15 @@ func New(r *gin.Engine, s services.Services) Handler {
 // Register configures HTTP routes for managing wallet resources.
 func (h *handler) Register() {
 
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"*"}
-	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
-	config.AllowCredentials = true
+	cfg := config.GetConfig()
+	fmt.Println(cfg.CORS.AllowedOrigins)
 
-	h.router.Use(cors.New(config))
+	configCORS := cors.DefaultConfig()
+	configCORS.AllowOrigins = cfg.CORS.AllowedOrigins
+	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+	configCORS.AllowCredentials = true
+
+	h.router.Use(cors.New(configCORS))
 
 	protected := h.router.Group("/", h.userAuth.Authorization())
 

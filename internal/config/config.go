@@ -25,6 +25,9 @@ type Config struct {
 	Jwt struct {
 		SecretKey string `env:"JWT_SECRET_KEY"`
 	}
+	CORS struct {
+		AllowedOrigins []string `env:"ALLOWED_ORIGINS"`
+	}
 }
 
 var instance *Config
