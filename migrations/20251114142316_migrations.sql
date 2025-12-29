@@ -34,28 +34,34 @@ CREATE TABLE questions (
 );
 
 CREATE TABLE lobbies (
-    uuid UUID,
+    uuid UUID UNIQUE,
     creator_uuid UUID,
     game_id INTEGER
 );
 
 CREATE TABLE players (
-    uuid UUID,
-    user_name TEXT
+    uuid UUID UNIQUE,
+    lobby_id UUID,
+    user_name TEXT,
+    is_admin bool
 );
 
 CREATE TABLE player_answers (
     id SERIAL PRIMARY KEY,
-    game_id INTEGER,
+    lobby_uuid UUID,
     player_uuid UUID,
-    question_id INTEGER
+    question_num INTEGER,
+    answer_num INTEGER,
+    answer_text TEXT DEFAULT 'NULL'
 );
 
 CREATE TABLE player_results (
     id SERIAL PRIMARY KEY,
-    game_id INTEGER,
+    lobby_uuid UUID,
     player_uuid UUID,
-    question_id INTEGER,
+    question_num INTEGER,
+    answer_num INTEGER,
+    answer_text TEXT,
     score INTEGER
 );
 

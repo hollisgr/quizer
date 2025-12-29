@@ -11,6 +11,7 @@ import (
 type Service interface {
 	Create(ctx context.Context, data dto.CreateNewQuestionRequest) (int, error)
 	Load(ctx context.Context, id int) (model.Question, error)
+	LoadByNumber(ctx context.Context, gameId int, number int) (model.Question, error)
 	ListByGameId(ctx context.Context, gameId int) ([]model.Question, error)
 	DeleteById(ctx context.Context, id int) (int, error)
 	Update(ctx context.Context, data model.Question) (int, error)
@@ -39,6 +40,15 @@ func (s *questionService) Load(ctx context.Context, id int) (model.Question, err
 	res, err := s.storage.QuestionLoad(ctx, id)
 	if err != nil {
 		log.Println(err)
+		return res, err
+	}
+	return res, err
+}
+
+func (s *questionService) LoadByNumber(ctx context.Context, gameId int, number int) (model.Question, error) {
+	res, err := s.storage.QuestionLoadByNumber(ctx, gameId, number)
+	if err != nil {
+		log.Println("question svc load by number err: ", err)
 		return res, err
 	}
 	return res, err

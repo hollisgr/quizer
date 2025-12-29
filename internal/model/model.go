@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type User struct {
 	Id       int    `json:"user_id" db:"id"`
@@ -24,6 +28,39 @@ type Question struct {
 	AnswerNum   int    `json:"answer" db:"answer"`
 	AnswerText  string `json:"answer_text" db:"answer_text"`
 	Description string `json:"description" db:"description"`
+}
+
+type Lobby struct {
+	UUID    uuid.UUID `json:"uuid" db:"uuid"`
+	Creator uuid.UUID `json:"creator_uuid" db:"creator_uuid"`
+	GameId  int       `json:"game_id" db:"game_id"`
+}
+
+type Player struct {
+	UUID      uuid.UUID `json:"uuid" db:"uuid"`
+	UserName  string    `json:"user_name" db:"user_name"`
+	LobbyUUID uuid.UUID `json:"lobby_uuid" db:"lobby_uuid"`
+	IsAdmin   bool      `json:"is_admin" db:"is_admin"`
+	GameId    int       `json:"game_id" db:"game_id"`
+}
+
+type Answer struct {
+	Id             int       `json:"answer_id" db:"id"`
+	LobbyUUID      uuid.UUID `json:"lobby_uuid" db:"lobby_uuid"`
+	PlayerUUID     uuid.UUID `json:"player_uuid" db:"player_uuid"`
+	AnswerNum      int       `json:"answer_num" db:"answer_num"`
+	AnswerText     string    `json:"answer_text" db:"answer_text"`
+	QuestionNumber int       `json:"question_num" db:"question_num"`
+}
+
+type Result struct {
+	Id             int       `json:"result_id" db:"id"`
+	LobbyUUID      uuid.UUID `json:"lobby_uuid" db:"lobby_uuid"`
+	PlayerUUID     uuid.UUID `json:"player_uuid" db:"player_uuid"`
+	QuestionNumber int       `json:"question_num" db:"question_num"`
+	AnswerNumber   int       `json:"answer_num" db:"answer_num"`
+	AnswerText     string    `json:"answer_text" db:"answer_text"`
+	Score          int       `json:"score" db:"score"`
 }
 
 type JwtResponce struct {

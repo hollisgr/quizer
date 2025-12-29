@@ -11,6 +11,7 @@ import (
 	"quizer_server/internal/service/question"
 	"quizer_server/internal/service/user"
 	"strings"
+	"sync"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -22,15 +23,27 @@ type Handler interface {
 	Register()
 }
 
+type PlayerData struct {
+	Connection *websocket.Conn
+	UserName   string
+	IsAdmin    bool
+	GameId     int
+}
+
+type GameSessions struct {
+	activeConnections map[uuid.UUID]map[uuid.UUID]PlayerData
+	mu                sync.RWMutex
+}
+
 type handler struct {
-	router            *gin.Engine
-	userSvc           user.Service
-	gameSvc           game.Service
-	questionSvc       question.Service
-	jwtSvc            jwt.Service
-	userAuth          middleware.UserAuthenticator
-	updater           websocket.Upgrader
-	activeConnections map[uuid.UUID]*websocket.Conn
+	router      *gin.Engine
+	userSvc     user.Service
+	gameSvc     game.Service
+	questionSvc question.Service
+	jwtSvc      jwt.Service
+	userAuth    middleware.UserAuthenticator
+	updater     websocket.Upgrader
+	sessions    GameSessions
 }
 
 func New(r *gin.Engine, s services.Services) Handler {
@@ -47,6 +60,9 @@ func New(r *gin.Engine, s services.Services) Handler {
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
+		},
+		sessions: GameSessions{
+			activeConnections: make(map[uuid.UUID]map[uuid.UUID]PlayerData),
 		},
 	}
 }
@@ -67,7 +83,7 @@ func (h *handler) Register() {
 	protected := h.router.Group("/", h.userAuth.Authorization())
 
 	h.router.GET("/login", h.Login)
-	h.router.GET("/ws/:player_uuid", h.wsHandler)
+	h.router.GET("/ws", h.wsHandler)
 
 	protected.GET("/user/:login", h.UserByLogin)
 
@@ -82,6 +98,8 @@ func (h *handler) Register() {
 	protected.POST("/games/:id", h.UpdateGame)
 	protected.POST("/games", h.CreateGame)
 	protected.DELETE("/games/:id", h.DeleteGame)
+
+	protected.POST("/lobby", h.CreateLobby)
 }
 
 // sendError sends an error response to the client with a specified HTTP status code and error message.

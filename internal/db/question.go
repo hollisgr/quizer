@@ -120,6 +120,44 @@ func (s *storage) QuestionLoad(ctx context.Context, id int) (model.Question, err
 	return res, nil
 }
 
+func (s *storage) QuestionLoadByNumber(ctx context.Context, gameId int, number int) (model.Question, error) {
+	var res model.Question
+	query := `
+		SELECT
+			id,
+			number,
+			description,
+			game_id,
+			answer,
+			answer_text,
+			cost
+		FROM questions
+		WHERE
+			game_id = @game_id
+			AND
+			number = @number
+	`
+
+	args := pgx.NamedArgs{
+		"game_id": gameId,
+		"number":  number,
+	}
+	rows, err := s.db.Query(ctx, query, args)
+	defer rows.Close()
+
+	if err != nil {
+		return res, err
+	}
+
+	res, err = pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.Question])
+
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
 func (s *storage) UpdateQuestion(ctx context.Context, updated model.Question) (int, error) {
 	res := 0
 	query := `

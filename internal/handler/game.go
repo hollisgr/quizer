@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"quizer_server/internal/dto"
 	"quizer_server/internal/model"
@@ -9,6 +10,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
+
+func (h *handler) CreateLobby(c *gin.Context) {
+	req := model.Lobby{}
+	err := c.BindJSON(&req)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "body req err")
+		log.Println("create lobby bind json err:", err)
+		return
+	}
+	count, err := h.gameSvc.CreateNewLobby(c.Request.Context(), req)
+	if err != nil {
+		log.Println("handler create new lobby err:", err)
+	}
+	sendSuccess(c, http.StatusOK, gin.H{
+		"success":         true,
+		"questions_count": count,
+	})
+}
 
 func (h *handler) CreateGame(c *gin.Context) {
 	req := dto.CreateNewGameRequest{}
