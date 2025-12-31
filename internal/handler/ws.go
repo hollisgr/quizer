@@ -128,32 +128,84 @@ func (h *handler) updateUserList(lobbyUUID uuid.UUID) {
 	h.sessions.mu.Unlock()
 }
 
+func (h *handler) isAdmin(playerUUID, lobbyUUID uuid.UUID) bool {
+	return h.sessions.activeConnections[lobbyUUID][playerUUID].IsAdmin
+}
+
 func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID, msg []byte, msgType int) {
 	log.Println("lobby_uuid:", lobbyUUID, "player_uuid:", playerUUID, "msgType:", msgType, "msg:", string(msg))
-	if string(msg) == "info" {
+
+	if string(msg) == "start" {
 		h.sessions.mu.Lock()
-		h.sessions.activeConnections[lobbyUUID][playerUUID].Connection.WriteJSON(gin.H{"data": h.sessions.activeConnections[lobbyUUID][playerUUID]})
+		if h.isAdmin(playerUUID, lobbyUUID) {
+			h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+				"type": "start",
+			})
+		} else {
+			h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+				"type": "access_denied",
+			})
+		}
 		h.sessions.mu.Unlock()
-		return
 	}
 
-	if string(msg) == "questions" {
-		lobby, _ := h.gameSvc.LoadLobbyByUUID(ctx, lobbyUUID)
-		questions, _ := h.questionSvc.ListByGameId(ctx, lobby.GameId)
+	if string(msg) == "next" {
 		h.sessions.mu.Lock()
-		h.sessions.activeConnections[lobbyUUID][playerUUID].Connection.WriteJSON(gin.H{
-			"type": "questions",
-			"data": questions})
+		if h.isAdmin(playerUUID, lobbyUUID) {
+			h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+				"type": "next",
+			})
+		} else {
+			h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+				"type": "access_denied",
+			})
+		}
 		h.sessions.mu.Unlock()
-		return
 	}
 
-	if strings.Contains(string(msg), "start_lobby:") {
-		gameId := 0
-		fmt.Sscanf(string(msg), "start_lobby:%d", &gameId)
+	if string(msg) == "finish_quiz" {
+		h.sessions.mu.Lock()
+		if h.isAdmin(playerUUID, lobbyUUID) {
+			h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+				"type": "finish_quiz",
+			})
+		} else {
+			h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+				"type": "access_denied",
+			})
+		}
+		h.sessions.mu.Unlock()
+	}
 
-		lobby, _ := h.gameSvc.LoadLobbyByUUID(ctx, lobbyUUID)
+	// if string(msg) == "final_question" {
+	// 	h.sessions.mu.Lock()
+	// 	for _, l := range h.sessions.activeConnections[lobbyUUID] {
+	// 		l.Connection.WriteJSON(gin.H{
+	// 			"type": "final_question",
+	// 		})
+	// 	}
+	// 	h.sessions.mu.Unlock()
+	// 	return
+	// }
+
+	// if string(msg) == "questions" {
+	// 	lobby, _ := h.lobbySvc.LoadByUUID(ctx, lobbyUUID)
+	// 	questions, _ := h.questionSvc.ListByGameId(ctx, lobby.GameId)
+	// 	h.sessions.mu.Lock()
+	// 	h.sessions.activeConnections[lobbyUUID][playerUUID].Connection.WriteJSON(gin.H{
+	// 		"type": "questions",
+	// 		"data": questions})
+	// 	h.sessions.mu.Unlock()
+	// 	return
+	// }
+
+	if strings.Contains(string(msg), "start_lobby") {
+		lobby, _ := h.lobbySvc.LoadByUUID(ctx, lobbyUUID)
 		questions, _ := h.questionSvc.ListByGameId(ctx, lobby.GameId)
+		err := h.lobbySvc.Update(context.Background(), lobby.UUID)
+		if err != nil {
+			log.Println("OOPS UPDATE FAIL")
+		}
 		h.sessions.mu.Lock()
 		for _, l := range h.sessions.activeConnections[lobbyUUID] {
 			l.Connection.WriteJSON(gin.H{
@@ -162,7 +214,8 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 			})
 		}
 		temp := h.sessions.activeConnections[lobbyUUID][lobbyUUID]
-		temp.GameId = gameId
+		temp.GameId = lobby.GameId
+		temp.QuestionCount = len(questions)
 		h.sessions.activeConnections[lobbyUUID][lobbyUUID] = temp
 		h.sessions.mu.Unlock()
 		return
@@ -177,6 +230,24 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 		}
 		h.sessions.mu.Unlock()
 		h.gameSvc.CalcResultNum(ctx, lobbyUUID)
+		answers := h.gameSvc.GetTextAnswers(ctx, lobbyUUID)
+		for _, l := range h.sessions.activeConnections[lobbyUUID] {
+			l.Connection.WriteJSON(gin.H{
+				"type": "text_questions",
+				"data": answers,
+			})
+		}
+		return
+	}
+
+	if string(msg) == "calculate_result" {
+		data := h.gameSvc.CalculateQuizResult(ctx, lobbyUUID)
+		h.sessions.mu.Lock()
+		h.sessions.activeConnections[lobbyUUID][lobbyUUID].Connection.WriteJSON(gin.H{
+			"type": "quiz_result",
+			"data": data,
+		})
+		h.sessions.mu.Unlock()
 		return
 	}
 
@@ -184,10 +255,12 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 		id := 0
 		fmt.Sscanf(string(msg), "next_question:%d", &id)
 		h.sessions.mu.Lock()
+		count := h.sessions.activeConnections[lobbyUUID][lobbyUUID].QuestionCount
 		for _, l := range h.sessions.activeConnections[lobbyUUID] {
 			l.Connection.WriteJSON(gin.H{
-				"type": "next_question",
-				"data": id,
+				"type":           "next_question",
+				"data":           id,
+				"question_count": count,
 			})
 		}
 		h.sessions.mu.Unlock()
@@ -198,7 +271,7 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 		questionNum := 0
 		isText := false
 		fmt.Sscanf(string(msg), "get_question:%d", &questionNum)
-		lobby, _ := h.gameSvc.LoadLobbyByUUID(ctx, lobbyUUID)
+		lobby, _ := h.lobbySvc.LoadByUUID(ctx, lobbyUUID)
 		question, _ := h.questionSvc.LoadByNumber(ctx, lobby.GameId, questionNum)
 		if question.AnswerText != "" {
 			isText = true
@@ -216,15 +289,18 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 	}
 
 	if strings.Contains(string(msg), "answer_num:") {
+		questionId := 0
 		questionNum := 0
 		answer := 0
-		fmt.Sscanf(string(msg), "answer_num:%d:%d", &questionNum, &answer)
+		fmt.Sscanf(string(msg), "answer_num:%d:%d:%d", &questionId, &questionNum, &answer)
+
 		data := model.Answer{
 			LobbyUUID:      lobbyUUID,
 			PlayerUUID:     playerUUID,
 			AnswerNum:      answer,
 			AnswerText:     "",
 			QuestionNumber: questionNum,
+			QuestionId:     questionId,
 		}
 		h.gameSvc.SaveAnswer(ctx, data)
 		h.sessions.mu.Lock()
@@ -238,13 +314,14 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 	}
 
 	if strings.Contains(string(msg), "answer_text:") {
-		questionNum, answerText := parseAnswer(string(msg))
+		questionId, questionNum, answerText := parseTextAnswer(string(msg))
 		data := model.Answer{
 			LobbyUUID:      lobbyUUID,
 			PlayerUUID:     playerUUID,
 			AnswerNum:      0,
 			AnswerText:     answerText,
 			QuestionNumber: questionNum,
+			QuestionId:     questionId,
 		}
 		h.gameSvc.SaveAnswer(ctx, data)
 		h.sessions.mu.Lock()
@@ -257,21 +334,42 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 		return
 	}
 
-	h.sessions.mu.Lock()
-	h.sessions.activeConnections[lobbyUUID][playerUUID].Connection.WriteJSON(gin.H{"echo": string(msg)})
-	h.sessions.mu.Unlock()
+	if strings.Contains(string(msg), "result_text:") {
+		res := strings.Split(string(msg), ":")
+		pUUID, _ := uuid.Parse(res[1])
+		qNum, _ := strconv.Atoi(res[2])
+		isCorrect := false
+		if res[3] == "1" {
+			isCorrect = true
+		}
+
+		h.sessions.mu.Lock()
+		gameId := h.sessions.activeConnections[lobbyUUID][lobbyUUID].GameId
+		h.sessions.mu.Unlock()
+		result := model.SaveTextResult{
+			LobbyUUID:      lobbyUUID,
+			PlayerUUID:     pUUID,
+			QuestionNumber: qNum,
+			IsCorrect:      isCorrect,
+			GameId:         gameId,
+		}
+
+		log.Println("result:", result)
+		h.gameSvc.SaveTextResult(ctx, result)
+	}
 }
 
-func parseAnswer(input string) (int, string) {
+func parseTextAnswer(input string) (int, int, string) {
 	parts := strings.SplitN(input, "/", 2)
 
 	firstPart := parts[0]
 
 	text := parts[1]
 
-	idStr := strings.TrimPrefix(firstPart, "answer_text:")
+	questionId := 0
+	questionNum := 0
 
-	id, _ := strconv.Atoi(idStr)
+	fmt.Sscanf(firstPart, "answer_text:%d:%d", &questionId, &questionNum)
 
-	return id, text
+	return questionId, questionNum, text
 }

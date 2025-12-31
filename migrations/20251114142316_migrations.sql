@@ -35,8 +35,8 @@ CREATE TABLE questions (
 
 CREATE TABLE lobbies (
     uuid UUID UNIQUE,
-    creator_uuid UUID,
-    game_id INTEGER
+    game_id INTEGER,
+    is_started bool
 );
 
 CREATE TABLE players (
@@ -50,6 +50,7 @@ CREATE TABLE player_answers (
     id SERIAL PRIMARY KEY,
     lobby_uuid UUID,
     player_uuid UUID,
+    question_id INTEGER,
     question_num INTEGER,
     answer_num INTEGER,
     answer_text TEXT DEFAULT 'NULL'
@@ -59,6 +60,7 @@ CREATE TABLE player_results (
     id SERIAL PRIMARY KEY,
     lobby_uuid UUID,
     player_uuid UUID,
+    question_id INTEGER,
     question_num INTEGER,
     answer_num INTEGER,
     answer_text TEXT,

@@ -13,6 +13,7 @@ import (
 	"quizer_server/internal/middleware"
 	"quizer_server/internal/service/game"
 	"quizer_server/internal/service/jwt"
+	"quizer_server/internal/service/lobby"
 	"quizer_server/internal/service/question"
 	"quizer_server/internal/service/user"
 	"quizer_server/pkg/postgres"
@@ -27,6 +28,7 @@ func SetupServices(pool *pgxpool.Pool) services.Services {
 	storage := db.New(pool)
 	us := user.New(storage)
 	gs := game.New(storage)
+	ls := lobby.New(storage)
 	qs := question.New(storage)
 	js := jwt.New(us)
 	ua := middleware.NewUserAuthenticator(us, js)
@@ -36,6 +38,7 @@ func SetupServices(pool *pgxpool.Pool) services.Services {
 		JwtSvc:      js,
 		UserAuth:    ua,
 		GameSvc:     gs,
+		LobbySvc:    ls,
 		QuestionSvc: qs,
 	}
 }

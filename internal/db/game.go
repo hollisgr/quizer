@@ -220,68 +220,6 @@ func (s *storage) PlayersByGameUUID(ctx context.Context, gameUUID uuid.UUID) ([]
 	return res, nil
 }
 
-func (s *storage) CreateLobby(ctx context.Context, data model.Lobby) error {
-	var id uuid.UUID
-	query := `
-		INSERT INTO
-			lobbies (
-				uuid,
-				creator_uuid,
-				game_id
-			)
-		VALUES
-			(
-			@uuid,
-			@creator_uuid,
-			@game_id
-		)
-		RETURNING
-			uuid
-	`
-	args := pgx.NamedArgs{
-		"uuid":         data.UUID,
-		"creator_uuid": data.Creator,
-		"game_id":      data.GameId,
-	}
-	row := s.db.QueryRow(ctx, query, args)
-	err := row.Scan(&id)
-	if err != nil {
-		return fmt.Errorf("db create new lobby error: %v", err)
-	}
-	return nil
-}
-
-func (s *storage) LobbyLoadByUUID(ctx context.Context, uuid uuid.UUID) (model.Lobby, error) {
-	var res model.Lobby
-	query := `
-		SELECT
-			uuid,
-			creator_uuid,
-			game_id
-		FROM lobbies 
-		WHERE uuid = @uuid
-	`
-
-	args := pgx.NamedArgs{
-		"uuid": uuid,
-	}
-
-	rows, err := s.db.Query(ctx, query, args)
-	defer rows.Close()
-
-	if err != nil {
-		return res, err
-	}
-
-	res, err = pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.Lobby])
-
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
-}
-
 func (s *storage) SaveAnswer(ctx context.Context, data model.Answer) error {
 	id := 0
 	query := `
@@ -291,7 +229,8 @@ func (s *storage) SaveAnswer(ctx context.Context, data model.Answer) error {
 				player_uuid,
 				answer_num,
 				answer_text,
-				question_num
+				question_num,
+				question_id
 			)
 		VALUES
 			(
@@ -299,7 +238,8 @@ func (s *storage) SaveAnswer(ctx context.Context, data model.Answer) error {
 			@player_uuid,
 			@answer_num,
 			@answer_text,
-			@question_num
+			@question_num,
+			@question_id
 		)
 		RETURNING
 			id
@@ -310,6 +250,7 @@ func (s *storage) SaveAnswer(ctx context.Context, data model.Answer) error {
 		"answer_num":   data.AnswerNum,
 		"answer_text":  data.AnswerText,
 		"question_num": data.QuestionNumber,
+		"question_id":  data.QuestionId,
 	}
 	row := s.db.QueryRow(ctx, query, args)
 	err := row.Scan(&id)
@@ -328,7 +269,8 @@ func (s *storage) LoadAnswersByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUI
 			player_uuid,
 			answer_num,
 			answer_text,
-			question_num
+			question_num,
+			question_id
 		FROM player_answers
 		WHERE lobby_uuid = @lobby_uuid
 		ORDER BY id desc
@@ -352,6 +294,86 @@ func (s *storage) LoadAnswersByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUI
 	return res, nil
 }
 
+func (s *storage) LoadTextAnswersByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUID) ([]model.PlayerTextAnswer, error) {
+	res := []model.PlayerTextAnswer{}
+	query := `
+		SELECT
+			pa.lobby_uuid,
+			pa.player_uuid,
+			p.user_name,
+			description,
+			pa.answer_text AS player_answer,
+			q.answer_text AS correct_answer,
+			pa.question_num,
+			pa.question_id
+		FROM player_answers pa
+		JOIN questions q ON pa.question_id = q.id
+		JOIN players p ON pa.player_uuid = p.uuid 
+		WHERE pa.lobby_uuid = @lobby_uuid 
+		AND pa.answer_text != ''
+		ORDER BY pa.id ASC;
+	`
+	args := pgx.NamedArgs{
+		"lobby_uuid": lobbyUUID,
+	}
+	rows, err := s.db.Query(ctx, query, args)
+	defer rows.Close()
+
+	if err != nil {
+		return res, err
+	}
+
+	res, err = pgx.CollectRows(rows, pgx.RowToStructByName[model.PlayerTextAnswer])
+
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (s *storage) LoadTextAnswer(ctx context.Context, lobbyUUID uuid.UUID, playerUUID uuid.UUID, questionNum int) (model.PlayerTextAnswer, error) {
+	res := model.PlayerTextAnswer{}
+	query := `
+		SELECT
+			pa.lobby_uuid,
+			pa.player_uuid,
+			p.user_name,
+			description,
+			pa.answer_text AS player_answer,
+			q.answer_text AS correct_answer,
+			pa.question_num,
+			pa.question_id
+		FROM player_answers pa
+		JOIN questions q ON pa.question_id = q.id
+		JOIN players p ON pa.player_uuid = p.uuid 
+		WHERE 
+			pa.lobby_uuid = @lobby_uuid
+			AND pa.player_uuid = @player_uuid
+			AND pa.question_num = @question_num
+			AND pa.answer_text != ''
+	`
+	args := pgx.NamedArgs{
+		"lobby_uuid":   lobbyUUID,
+		"player_uuid":  playerUUID,
+		"question_num": questionNum,
+	}
+	rows, err := s.db.Query(ctx, query, args)
+	defer rows.Close()
+
+	if err != nil {
+		return res, err
+	}
+
+	res, err = pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.PlayerTextAnswer])
+
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
 func (s *storage) SaveResult(ctx context.Context, data model.Result) error {
 	id := 0
 	query := `
@@ -360,6 +382,7 @@ func (s *storage) SaveResult(ctx context.Context, data model.Result) error {
 				lobby_uuid,
 				player_uuid,
 				question_num,
+				question_id,
 				answer_num,
 				answer_text,
 				score
@@ -369,6 +392,7 @@ func (s *storage) SaveResult(ctx context.Context, data model.Result) error {
 			@lobby_uuid,
 			@player_uuid,
 			@question_num,
+			@question_id,
 			@answer_num,
 			@answer_text,
 			@score
@@ -380,6 +404,7 @@ func (s *storage) SaveResult(ctx context.Context, data model.Result) error {
 		"lobby_uuid":   data.LobbyUUID,
 		"player_uuid":  data.PlayerUUID,
 		"question_num": data.QuestionNumber,
+		"question_id":  data.QuestionId,
 		"answer_num":   data.AnswerNumber,
 		"answer_text":  data.AnswerText,
 		"score":        data.Score,
@@ -396,13 +421,14 @@ func (s *storage) LoadResultByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUID
 	res := []model.Result{}
 	query := `
 		SELECT
-			id,
 			lobby_uuid,
 			player_uuid,
+			question_num,
+			question_id,
 			answer_num,
 			answer_text,
 			score
-		FROM player_answers
+		FROM player_results
 		WHERE lobby_uuid = @lobby_uuid
 		ORDER BY id desc
 	`
@@ -425,13 +451,14 @@ func (s *storage) LoadPlayerResult(ctx context.Context, lobbyUUID uuid.UUID, pla
 	res := []model.Result{}
 	query := `
 		SELECT
-			id,
 			lobby_uuid,
 			player_uuid,
+			question_num,
+			question_id,
 			answer_num,
 			answer_text,
 			score
-		FROM player_answers
+		FROM player_results
 		WHERE 
 			lobby_uuid = @lobby_uuid
 			AND
@@ -450,6 +477,33 @@ func (s *storage) LoadPlayerResult(ctx context.Context, lobbyUUID uuid.UUID, pla
 	}
 
 	res, _ = pgx.CollectRows(rows, pgx.RowToStructByName[model.Result])
+
+	return res
+}
+
+func (s *storage) CalculateResults(ctx context.Context, lobbyUUID uuid.UUID) []model.CalcResult {
+	res := []model.CalcResult{}
+	query := `
+		SELECT 
+			p.user_name, 
+			SUM(score) as total_score 
+		FROM player_results pa 
+		JOIN players p ON p.uuid = pa.player_uuid
+		WHERE lobby_uuid = @lobby_uuid
+		GROUP BY p.user_name 
+		ORDER BY total_score DESC
+	`
+	args := pgx.NamedArgs{
+		"lobby_uuid": lobbyUUID,
+	}
+	rows, err := s.db.Query(ctx, query, args)
+	defer rows.Close()
+
+	if err != nil {
+		return res
+	}
+
+	res, _ = pgx.CollectRows(rows, pgx.RowToStructByName[model.CalcResult])
 
 	return res
 }

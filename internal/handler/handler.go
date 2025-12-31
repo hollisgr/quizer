@@ -8,6 +8,7 @@ import (
 	"quizer_server/internal/middleware"
 	"quizer_server/internal/service/game"
 	"quizer_server/internal/service/jwt"
+	"quizer_server/internal/service/lobby"
 	"quizer_server/internal/service/question"
 	"quizer_server/internal/service/user"
 	"strings"
@@ -24,10 +25,11 @@ type Handler interface {
 }
 
 type PlayerData struct {
-	Connection *websocket.Conn
-	UserName   string
-	IsAdmin    bool
-	GameId     int
+	Connection    *websocket.Conn
+	UserName      string
+	IsAdmin       bool
+	GameId        int
+	QuestionCount int
 }
 
 type GameSessions struct {
@@ -39,6 +41,7 @@ type handler struct {
 	router      *gin.Engine
 	userSvc     user.Service
 	gameSvc     game.Service
+	lobbySvc    lobby.Service
 	questionSvc question.Service
 	jwtSvc      jwt.Service
 	userAuth    middleware.UserAuthenticator
@@ -53,6 +56,7 @@ func New(r *gin.Engine, s services.Services) Handler {
 		jwtSvc:      s.JwtSvc,
 		userAuth:    s.UserAuth,
 		gameSvc:     s.GameSvc,
+		lobbySvc:    s.LobbySvc,
 		questionSvc: s.QuestionSvc,
 		updater: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -100,6 +104,9 @@ func (h *handler) Register() {
 	protected.DELETE("/games/:id", h.DeleteGame)
 
 	protected.POST("/lobby", h.CreateLobby)
+	protected.GET("/lobby", h.LobbyList)
+
+	protected.GET("/lobby/text_answers/:uuid", h.GetTextAnswers)
 }
 
 // sendError sends an error response to the client with a specified HTTP status code and error message.

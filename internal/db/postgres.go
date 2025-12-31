@@ -20,15 +20,21 @@ type Storage interface {
 
 	CreateLobby(ctx context.Context, data model.Lobby) error
 	LobbyLoadByUUID(ctx context.Context, uuid uuid.UUID) (model.Lobby, error)
+	UpdateLobby(ctx context.Context, lobbyUUID uuid.UUID) error
+	LobbyList(ctx context.Context) ([]model.Lobby, error)
 
 	PlayersByGameUUID(ctx context.Context, gameUUID uuid.UUID) ([]model.Player, error)
 	SavePlayer(ctx context.Context, newPlayer model.Player) error
-	SaveAnswer(ctx context.Context, data model.Answer) error
 
+	SaveAnswer(ctx context.Context, data model.Answer) error
 	LoadAnswersByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUID) ([]model.Answer, error)
+	LoadTextAnswersByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUID) ([]model.PlayerTextAnswer, error)
+	LoadTextAnswer(ctx context.Context, lobbyUUID uuid.UUID, playerUUID uuid.UUID, questionNum int) (model.PlayerTextAnswer, error)
+
 	SaveResult(ctx context.Context, data model.Result) error
 	LoadResultByLobbyUUID(ctx context.Context, lobbyUUID uuid.UUID) []model.Result
 	LoadPlayerResult(ctx context.Context, lobbyUUID uuid.UUID, playerUUID uuid.UUID) []model.Result
+	CalculateResults(ctx context.Context, lobbyUUID uuid.UUID) []model.CalcResult
 
 	CreateQuestion(ctx context.Context, data dto.CreateNewQuestionRequest) (int, error)
 	QuestionLoad(ctx context.Context, id int) (model.Question, error)

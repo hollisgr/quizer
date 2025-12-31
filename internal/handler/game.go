@@ -8,6 +8,7 @@ import (
 	"quizer_server/internal/model"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -19,7 +20,7 @@ func (h *handler) CreateLobby(c *gin.Context) {
 		log.Println("create lobby bind json err:", err)
 		return
 	}
-	count, err := h.gameSvc.CreateNewLobby(c.Request.Context(), req)
+	count, err := h.lobbySvc.Create(c.Request.Context(), req)
 	if err != nil {
 		log.Println("handler create new lobby err:", err)
 	}
@@ -27,6 +28,14 @@ func (h *handler) CreateLobby(c *gin.Context) {
 		"success":         true,
 		"questions_count": count,
 	})
+}
+
+func (h *handler) LobbyList(c *gin.Context) {
+	res, err := h.lobbySvc.List(c.Request.Context())
+	if err != nil {
+		log.Println("handler lobby list err:", err)
+	}
+	sendSuccess(c, http.StatusOK, res)
 }
 
 func (h *handler) CreateGame(c *gin.Context) {
@@ -144,4 +153,19 @@ func (h *handler) DeleteGame(c *gin.Context) {
 	}
 
 	sendSuccess(c, http.StatusOK, resp)
+}
+
+func (h *handler) GetTextAnswers(c *gin.Context) {
+	idUUID := c.Params.ByName("uuid")
+	lobbyUUID, err := uuid.Parse(idUUID)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "invalid uuid")
+		return
+	}
+	res := h.gameSvc.GetTextAnswers(c.Request.Context(), lobbyUUID)
+	// if len(res) == 0 {
+	// 	sendError(c, http.StatusNotFound, "list is empty")
+	// 	return
+	// }
+	c.JSON(http.StatusOK, res)
 }

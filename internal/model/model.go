@@ -31,9 +31,9 @@ type Question struct {
 }
 
 type Lobby struct {
-	UUID    uuid.UUID `json:"uuid" db:"uuid"`
-	Creator uuid.UUID `json:"creator_uuid" db:"creator_uuid"`
-	GameId  int       `json:"game_id" db:"game_id"`
+	UUID      uuid.UUID `json:"uuid" db:"uuid"`
+	GameId    int       `json:"game_id" db:"game_id"`
+	IsStarted bool      `json:"is_started" db:"is_started"`
 }
 
 type Player struct {
@@ -51,6 +51,18 @@ type Answer struct {
 	AnswerNum      int       `json:"answer_num" db:"answer_num"`
 	AnswerText     string    `json:"answer_text" db:"answer_text"`
 	QuestionNumber int       `json:"question_num" db:"question_num"`
+	QuestionId     int       `json:"question_id" db:"question_id"`
+}
+
+type PlayerTextAnswer struct {
+	LobbyUUID      uuid.UUID `json:"lobby_uuid" db:"lobby_uuid"`
+	PlayerUUID     uuid.UUID `json:"player_uuid" db:"player_uuid"`
+	Description    string    `json:"description" db:"description"`
+	UserName       string    `json:"user_name" db:"user_name"`
+	AnswerText     string    `json:"answer_text" db:"player_answer"`
+	CorrectAnswer  string    `json:"correct_answer" db:"correct_answer"`
+	QuestionNumber int       `json:"question_num" db:"question_num"`
+	QuestionId     int       `json:"question_id" db:"question_id"`
 }
 
 type Result struct {
@@ -58,9 +70,24 @@ type Result struct {
 	LobbyUUID      uuid.UUID `json:"lobby_uuid" db:"lobby_uuid"`
 	PlayerUUID     uuid.UUID `json:"player_uuid" db:"player_uuid"`
 	QuestionNumber int       `json:"question_num" db:"question_num"`
+	QuestionId     int       `json:"question_id" db:"question_id"`
 	AnswerNumber   int       `json:"answer_num" db:"answer_num"`
 	AnswerText     string    `json:"answer_text" db:"answer_text"`
 	Score          int       `json:"score" db:"score"`
+}
+
+type SaveTextResult struct {
+	LobbyUUID      uuid.UUID `json:"lobby_uuid" db:"lobby_uuid"`
+	PlayerUUID     uuid.UUID `json:"player_uuid" db:"player_uuid"`
+	QuestionId     int       `json:"question_id" db:"question_id"`
+	QuestionNumber int       `json:"question_num" db:"question_num"`
+	IsCorrect      bool
+	GameId         int
+}
+
+type CalcResult struct {
+	TotalScore int    `json:"total_score" db:"total_score"`
+	UserName   string `json:"user_name" db:"user_name"`
 }
 
 type JwtResponce struct {

@@ -20,12 +20,12 @@ type Service interface {
 	GetPlayersByGameUUID(ctx context.Context, gameUUID uuid.UUID) []model.Player
 	SavePlayer(ctx context.Context, newPlayer model.Player) error
 
-	CreateNewLobby(ctx context.Context, lobby model.Lobby) (int, error)
-	LoadLobbyByUUID(ctx context.Context, uuid uuid.UUID) (model.Lobby, error)
-
 	SaveAnswer(ctx context.Context, data model.Answer)
+	GetTextAnswers(ctx context.Context, lobbyUUID uuid.UUID) []model.PlayerTextAnswer
 
 	CalcResultNum(ctx context.Context, lobbyUUID uuid.UUID)
+	CalculateQuizResult(ctx context.Context, lobbyUUID uuid.UUID) []model.CalcResult
+	SaveTextResult(ctx context.Context, result model.SaveTextResult)
 }
 
 type gameService struct {
@@ -93,36 +93,20 @@ func (gs *gameService) GetPlayersByGameUUID(ctx context.Context, gameUUID uuid.U
 	return res
 }
 
-func (gs *gameService) CreateNewLobby(ctx context.Context, lobby model.Lobby) (int, error) {
-	count := 0
-	err := gs.storage.CreateLobby(ctx, lobby)
-
-	if err != nil {
-		log.Println(err)
-		// return count, err
-	}
-
-	questions, _ := gs.storage.QuestionsByGameId(ctx, lobby.GameId)
-
-	count = len(questions)
-
-	return count, nil
-}
-
-func (gs *gameService) LoadLobbyByUUID(ctx context.Context, uuid uuid.UUID) (model.Lobby, error) {
-	res, err := gs.storage.LobbyLoadByUUID(ctx, uuid)
-	if err != nil {
-		log.Println("game svc load lobby err", err)
-		return res, err
-	}
-	return res, nil
-}
-
 func (gs *gameService) SaveAnswer(ctx context.Context, data model.Answer) {
 	err := gs.storage.SaveAnswer(ctx, data)
 	if err != nil {
 		log.Println("service save answer err: ", err)
 	}
+}
+
+func (gs *gameService) GetTextAnswers(ctx context.Context, lobbyUUID uuid.UUID) []model.PlayerTextAnswer {
+	answers, err := gs.storage.LoadTextAnswersByLobbyUUID(ctx, lobbyUUID)
+	if err != nil {
+		log.Println("game service get text answers err:", err)
+		return answers
+	}
+	return answers
 }
 
 func (gs *gameService) CalcResultNum(ctx context.Context, lobbyUUID uuid.UUID) {
@@ -158,6 +142,7 @@ func (gs *gameService) CalcResultNum(ctx context.Context, lobbyUUID uuid.UUID) {
 					LobbyUUID:      lobbyUUID,
 					PlayerUUID:     a.PlayerUUID,
 					QuestionNumber: a.QuestionNumber,
+					QuestionId:     a.QuestionId,
 					AnswerNumber:   a.AnswerNum,
 					Score:          score,
 				}
@@ -169,4 +154,39 @@ func (gs *gameService) CalcResultNum(ctx context.Context, lobbyUUID uuid.UUID) {
 			}
 		}
 	}
+}
+
+func (gs *gameService) SaveTextResult(ctx context.Context, data model.SaveTextResult) {
+	question, err := gs.storage.QuestionLoadByNumber(ctx, data.GameId, data.QuestionNumber)
+	if err != nil {
+		log.Println("game service save text result question load err:", err)
+		return
+	}
+	answer, err := gs.storage.LoadTextAnswer(ctx, data.LobbyUUID, data.PlayerUUID, data.QuestionNumber)
+	if err != nil {
+		log.Println("game service save text result answer load err:", err)
+		return
+	}
+	score := 0
+	if data.IsCorrect {
+		score = 1
+	}
+	result := model.Result{
+		LobbyUUID:      data.LobbyUUID,
+		PlayerUUID:     data.PlayerUUID,
+		QuestionNumber: data.QuestionNumber,
+		QuestionId:     answer.QuestionId,
+		AnswerText:     answer.AnswerText,
+		Score:          question.Cost * score,
+	}
+	err = gs.storage.SaveResult(ctx, result)
+	if err != nil {
+		log.Println("game service save text result save result err:", err)
+		return
+	}
+}
+
+func (gs *gameService) CalculateQuizResult(ctx context.Context, lobbyUUID uuid.UUID) []model.CalcResult {
+	res := gs.storage.CalculateResults(ctx, lobbyUUID)
+	return res
 }
