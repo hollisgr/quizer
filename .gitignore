@@ -1,3 +1,4 @@
 quizer_server
 web
 *.env
+uploads

@@ -16,6 +16,7 @@ type Service interface {
 	GameLoad(ctx context.Context, id int) (model.Game, error)
 	DeleteGame(ctx context.Context, id int) (int, error)
 	UpdateGame(ctx context.Context, updated model.Game) (int, error)
+	UpdateFilePath(ctx context.Context, gameId int, path string) (int, error)
 
 	GetPlayersByGameUUID(ctx context.Context, gameUUID uuid.UUID) []model.Player
 	SavePlayer(ctx context.Context, newPlayer model.Player) error
@@ -189,4 +190,13 @@ func (gs *gameService) SaveTextResult(ctx context.Context, data model.SaveTextRe
 func (gs *gameService) CalculateQuizResult(ctx context.Context, lobbyUUID uuid.UUID) []model.CalcResult {
 	res := gs.storage.CalculateResults(ctx, lobbyUUID)
 	return res
+}
+
+func (gs *gameService) UpdateFilePath(ctx context.Context, gameId int, path string) (int, error) {
+	id, err := gs.storage.UpdateFilePath(ctx, gameId, path)
+	if err != nil {
+		log.Println("update file path err:", err)
+		return id, err
+	}
+	return id, nil
 }

@@ -213,10 +213,15 @@ func (h *handler) parseMsg(ctx context.Context, playerUUID, lobbyUUID uuid.UUID,
 				"data": questions,
 			})
 		}
-		temp := h.sessions.activeConnections[lobbyUUID][lobbyUUID]
-		temp.GameId = lobby.GameId
-		temp.QuestionCount = len(questions)
-		h.sessions.activeConnections[lobbyUUID][lobbyUUID] = temp
+		oldLobby := h.sessions.activeConnections[lobbyUUID][lobbyUUID]
+		tmp := PlayerData{
+			Connection:    oldLobby.Connection,
+			UserName:      oldLobby.UserName,
+			IsAdmin:       oldLobby.IsAdmin,
+			QuestionCount: len(questions),
+			GameId:        lobby.GameId,
+		}
+		h.sessions.activeConnections[lobbyUUID][lobbyUUID] = tmp
 		h.sessions.mu.Unlock()
 		return
 	}

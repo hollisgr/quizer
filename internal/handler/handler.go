@@ -107,6 +107,10 @@ func (h *handler) Register() {
 	protected.GET("/lobby", h.LobbyList)
 
 	protected.GET("/lobby/text_answers/:uuid", h.GetTextAnswers)
+
+	protected.POST("/upload-presentation", h.UploadPresentation)
+
+	h.router.GET("/get-pdf", h.GetPDF)
 }
 
 // sendError sends an error response to the client with a specified HTTP status code and error message.

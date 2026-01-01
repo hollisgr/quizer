@@ -132,6 +132,32 @@ func (s *storage) UpdateGame(ctx context.Context, updated model.Game) (int, erro
 	return res, nil
 }
 
+func (s *storage) UpdateFilePath(ctx context.Context, gameId int, path string) (int, error) {
+	res := 0
+	query := `
+		UPDATE
+			games
+		SET
+			link = @link
+		WHERE
+			id = @id
+		RETURNING id
+	`
+	args := pgx.NamedArgs{
+		"id":   gameId,
+		"link": path,
+	}
+	row := s.db.QueryRow(ctx, query, args)
+
+	err := row.Scan(&res)
+
+	if err != nil || res == 0 {
+		return res, err
+	}
+
+	return res, nil
+}
+
 func (s *storage) DeleteGame(ctx context.Context, id int) (int, error) {
 	res := 0
 	query := `
