@@ -2,3 +2,4 @@ quizer_server
 web
 *.env
 uploads
+postgres_data

@@ -12,7 +12,16 @@ INSERT INTO users (
     ) 
     VALUES (
         'admin',
-        'admin'
+        'qwe123qwe123'
+);
+
+INSERT INTO users (
+    login, 
+    password
+    ) 
+    VALUES (
+        'akkerz',
+        'akkerz123'
 );
 
 CREATE TABLE games (
