@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"quizer_server/internal/app/services"
 	"quizer_server/internal/config"
@@ -75,12 +76,13 @@ func New(r *gin.Engine, s services.Services) Handler {
 func (h *handler) Register() {
 
 	cfg := config.GetConfig()
-	fmt.Println(cfg.CORS.AllowedOrigins)
 
 	configCORS := cors.DefaultConfig()
 	configCORS.AllowOrigins = cfg.CORS.AllowedOrigins
 	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	configCORS.AllowCredentials = true
+
+	log.Printf("CORS CONFIG: %+v\n", configCORS)
 
 	h.router.Use(cors.New(configCORS))
 
