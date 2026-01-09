@@ -8,15 +8,11 @@ import (
 	"os/signal"
 	"quizer_server/internal/app/services"
 	"quizer_server/internal/config"
-	"quizer_server/internal/db"
-	"quizer_server/internal/handler"
-	"quizer_server/internal/middleware"
-	"quizer_server/internal/service/game"
-	"quizer_server/internal/service/jwt"
-	"quizer_server/internal/service/lobby"
-	"quizer_server/internal/service/question"
-	"quizer_server/internal/service/user"
-	"quizer_server/pkg/postgres"
+	"quizer_server/internal/delivery/restapi"
+	"quizer_server/internal/infrastracture/jwt"
+	"quizer_server/internal/infrastracture/postgres"
+	"quizer_server/internal/usecases"
+	pg "quizer_server/pkg/postgres_client"
 	"syscall"
 	"time"
 
@@ -24,29 +20,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func SetupServices(pool *pgxpool.Pool) services.Services {
-	storage := db.New(pool)
-	us := user.New(storage)
-	gs := game.New(storage)
-	ls := lobby.New(storage)
-	qs := question.New(storage)
-	js := jwt.New(us)
-	ua := middleware.NewUserAuthenticator(us, js)
+func SetupServices(cfg *config.Config, pool *pgxpool.Pool) services.UseCases {
+	userRepo := postgres.NewUserStorage(pool)
+	tokenManager := jwt.NewManager(cfg.Jwt.SecretKey)
 
-	return services.Services{
-		UserSvc:     us,
-		JwtSvc:      js,
-		UserAuth:    ua,
-		GameSvc:     gs,
-		LobbySvc:    ls,
-		QuestionSvc: qs,
+	userUseCases := usecases.NewUserUseCases(userRepo, tokenManager)
+	// us := user.New(storage)
+	// gs := game.New(storage)
+	// ls := lobby.New(storage)
+	// qs := question.New(storage)
+	// js := jwt.New(us)
+	// ua := middleware.NewUserAuthenticator(us, js)
+
+	return services.UseCases{
+		UserUseCase:  userUseCases,
+		TokenManager: tokenManager,
+		// UserSvc:     us,
+		// JwtSvc:      js,
+		// UserAuth:    ua,
+		// GameSvc:     gs,
+		// LobbySvc:    ls,
+		// QuestionSvc: qs,
 	}
 }
 
 // SetupRouter configures and returns a gin.Engine instance with registered wallet handlers.
-func SetupRouter(s services.Services) *gin.Engine {
+func SetupRouter(s services.UseCases) *gin.Engine {
 	r := gin.Default()
-	h := handler.New(r, s)
+	h := restapi.NewRouter(s, r)
 	h.Register()
 	return r
 }
@@ -54,7 +55,7 @@ func SetupRouter(s services.Services) *gin.Engine {
 // SetupServer creates and returns an http.Server instance based on configuration and router.
 func SetupServer(cfg *config.Config, r *gin.Engine) *http.Server {
 	srv := &http.Server{
-		Addr:    cfg.Listen.Addr,
+		Addr:    cfg.Postgresql.DSN(),
 		Handler: r,
 	}
 	return srv
@@ -91,7 +92,7 @@ func HandleQuit(s *http.Server) {
 
 // ConnectToDB establishes a connection pool to PostgreSQL database using given configuration.
 func ConnectToDB(cfg *config.Config) *pgxpool.Pool {
-	pgxPool, err := postgres.NewPool(context.Background(), 5, cfg.Postgresql.DSN)
+	pgxPool, err := pg.NewPool(context.Background(), 5, cfg.Postgresql.DSN())
 	if err != nil {
 		log.Fatalln("cant connect to db")
 	}

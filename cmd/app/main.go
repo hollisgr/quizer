@@ -6,12 +6,11 @@ import (
 )
 
 func main() {
-	cfg := config.GetConfig()
-
+	cfg := config.MustLoad("config.env")
 	pool := app.ConnectToDB(cfg)
 	defer pool.Close()
 
-	services := app.SetupServices(pool)
+	services := app.SetupServices(cfg, pool)
 
 	router := app.SetupRouter(services)
 
