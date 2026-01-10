@@ -6,11 +6,9 @@ import (
 )
 
 type UseCases struct {
-	UserUseCase  usecases.UserUseCases
+	UserUseCase *usecases.UserUseCases
+	// LobbyUseCase    usecases.LobbyUseCases
+	// GameUseCase     usecases.GameUseCases
+	// QuestionUseCase usecases.QuestionUseCases
 	TokenManager *jwt.Manager
-	// GameSvc     game.Service
-	// LobbySvc    lobby.Service
-	// QuestionSvc question.Service
-	// JwtSvc   jwt.Service
-	// UserAuth middleware.UserAuthenticator
 }

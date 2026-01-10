@@ -11,6 +11,7 @@ import (
 type router struct {
 	router       *gin.Engine
 	userHandler  *apiV1.UserHandler
+	gameHandler  *apiV1.GameHandler
 	tokenManager middleware.TokenManager
 }
 

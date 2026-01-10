@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -45,17 +46,24 @@ func SetupServices(cfg *config.Config, pool *pgxpool.Pool) services.UseCases {
 }
 
 // SetupRouter configures and returns a gin.Engine instance with registered wallet handlers.
-func SetupRouter(s services.UseCases) *gin.Engine {
+func SetupRouter(s services.UseCases, cfg *config.Config) *gin.Engine {
 	r := gin.Default()
 	h := restapi.NewRouter(s, r)
+	configCORS := cors.DefaultConfig()
+	configCORS.AllowOrigins = cfg.CORS.AllowedOrigins
+	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+	configCORS.AllowCredentials = true
+	r.Use(cors.New(configCORS))
+
 	h.Register()
+
 	return r
 }
 
 // SetupServer creates and returns an http.Server instance based on configuration and router.
 func SetupServer(cfg *config.Config, r *gin.Engine) *http.Server {
 	srv := &http.Server{
-		Addr:    cfg.Postgresql.DSN(),
+		Addr:    cfg.Listen.Addr(),
 		Handler: r,
 	}
 	return srv

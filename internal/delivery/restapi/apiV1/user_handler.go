@@ -1,20 +1,24 @@
 package apiV1
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"quizer_server/internal/delivery/restapi/responce"
 	"quizer_server/internal/domain"
-	"quizer_server/internal/usecases"
 
 	"github.com/gin-gonic/gin"
 )
 
-type UserHandler struct {
-	userUC usecases.UserUseCases
+type UserUseCases interface {
+	Login(ctx context.Context, login string, password string) (string, error)
 }
 
-func NewUserHandler(uuc usecases.UserUseCases) *UserHandler {
+type UserHandler struct {
+	userUC UserUseCases
+}
+
+func NewUserHandler(uuc UserUseCases) *UserHandler {
 	return &UserHandler{
 		userUC: uuc,
 	}

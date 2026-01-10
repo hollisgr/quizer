@@ -12,7 +12,7 @@ func main() {
 
 	services := app.SetupServices(cfg, pool)
 
-	router := app.SetupRouter(services)
+	router := app.SetupRouter(services, cfg)
 
 	srv := app.SetupServer(cfg, router)
 
